@@ -1,8 +1,9 @@
 # dataset name: XYGraphP1
-
-from utils import XYGraphP1
+from utils.xygraph import XYGraphP1
 from utils.utils import prepare_folder
-from models import MLP, MLPLinear, GCN, SAGE, GAT, GATv2
+from models.mlp import MLP, MLPLinear
+from models.gcn import GCN
+from models.sage import SAGE
 
 import argparse
 
@@ -79,7 +80,7 @@ def test(model, data, split_idx, no_conv=False):
             
 def main():
     parser = argparse.ArgumentParser(description='gnn_models')
-    parser.add_argument('--device', type=int, default=0)
+    parser.add_argument('--device', type=str, default='0')
     parser.add_argument('--dataset', type=str, default='XYGraphP1')
     parser.add_argument('--log_steps', type=int, default=10)
     parser.add_argument('--model', type=str, default='mlp')

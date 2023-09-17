@@ -4,7 +4,8 @@ from utils import XYGraphP1
 from utils.utils import prepare_folder
 from utils.evaluator import Evaluator
 from torch_geometric.data import NeighborSampler
-from models import SAGE_NeighSampler, GAT_NeighSampler, GATv2_NeighSampler
+from models.sage_neighsampler import SAGE_NeighSampler
+from models.gat_neighsampler import GAT_NeighSampler, GATv2_NeighSampler
 from tqdm import tqdm
 
 import argparse
