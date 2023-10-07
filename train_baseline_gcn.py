@@ -7,9 +7,12 @@ from models.sage import SAGE
 from config import parser_args
 from logger import logger
 
+import os
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
+import torch_geometric.transforms as T
+from torch.utils.data import random_split
 from torch_geometric.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 
@@ -34,87 +37,100 @@ sage_parameters = {'lr':0.01
              }
 
 
-def train(model, train_loader, optimizer, device):
+def train(model, data, train_idx, optimizer):
     model.train()
-    total_loss = 0
-    for data in train_loader:
-        data = data.to(device)
-        optimizer.zero_grad()
-        out = model(data.x, data.edge_index)
-        loss = F.nll_loss(out, data.y)
-        loss.backward()
-        optimizer.step()
-        total_loss += loss.item()
-    return total_loss / len(train_loader)
+    optimizer.zero_grad()
+    out = model(data.x, data.adj_t)[train_idx]
+    loss = F.cross_entropy(out, data.y[train_idx].long())
+    loss.backward()
+    optimizer.step()
+    return loss.item()
 
 
 @torch.no_grad()
-def test(model, loader, device):
+def test(model, data, split_idx):
     model.eval()
-    all_pred = []
-    all_loss = []
-    for data in loader:
-        data = data.to(device)
-        out = model(data.x, data.edge_index)
-        y_pred = out.argmax(dim=1)
-        all_pred.append(y_pred)
-        loss = F.nll_loss(out, data.y)
-        all_loss.append(loss.item())
-    average_loss = sum(all_loss) / len(loader)
-    return average_loss, torch.cat(all_pred)
+
+    # Obtain log probabilities (logits) from the model
+    out = model(data.x, data.adj_t)  
+    y_pred = out.exp()
+
+    losses = {}
+    accuracies = {}
+    for key in ['train', 'valid', 'test']:
+        node_id = split_idx[key]
+        losses[key] = F.nll_loss(out[node_id], data.y[node_id].long()).item()
+
+        pred = y_pred[node_id].max(1)[1]
+        correct = float(pred.eq(data.y[node_id]).sum().item())
+        acc = correct / len(node_id)
+        accuracies[key] = acc
+
+    return losses, accuracies, y_pred
 
 
 def main():
     args = parser_args()
     args.elliptic_args = {'folder': '/home/ubuntu/2022_finvcup_baseline/data/elliptic_temporal','tar_file': 'elliptic_bitcoin_dataset_cont.tar.gz','classes_file': 'elliptic_bitcoin_dataset_cont/elliptic_txs_classes.csv','times_file': 'elliptic_bitcoin_dataset_cont/elliptic_txs_nodetime.csv','edges_file': 'elliptic_bitcoin_dataset_cont/elliptic_txs_edgelist_timed.csv','feats_file': 'elliptic_bitcoin_dataset_cont/elliptic_txs_features.csv'}
-    args.model = 'gcn'
+    args.dataset = 'Elliptic'
+    args.model = 'sage'
     args.log_steps = 1
     logger.info(args)
-
-    random_seed = 2023
-
-    device = torch.device(args.device if torch.cuda.is_available() and args.device.startswith('cuda') else 'cpu')
+    
+    device = torch.device(f'{args.device}' if torch.cuda.is_available() else 'cpu')
 
     # Initialize your EllipticTemporalDataset here
-    dataset = EllipticTemporalDataset(args)
+    print(args.elliptic_args['folder'])
+    dataset = EllipticTemporalDataset(root=args.elliptic_args['folder'], name='elliptic', transform=T.ToSparseTensor())
+    print(f"dataset:{dataset}")
+    data = dataset[0]
+    print(f"data:{data}")
+    data.adj_t = data.adj_t.to_symmetric()
 
-    # Splitting the dataset into train, validation, and test sets
-    total_data_len = len(dataset)
-    train_size = int(0.7 * total_data_len)
-    valid_size = int(0.2 * total_data_len)
-    test_size = total_data_len - train_size - valid_size
+    if args.dataset in ['Elliptic']:
+        x = data.x
+        x = (x-x.mean(0))/x.std(0)
+        data.x = x
+    if data.y.dim()==2:
+        data.y = data.y.squeeze(1)      
 
-    train_indices = list(range(train_size))
-    valid_indices = list(range(train_size, train_size + valid_size))
-    test_indices = list(range(train_size + valid_size, total_data_len))
-
-    # Create DataLoaders for train, validation, and test sets
-    train_loader = DataLoader(dataset, batch_size=args.train_batch_size, sampler=SubsetRandomSampler(train_indices))
-    valid_loader = DataLoader(dataset, batch_size=args.train_batch_size, sampler=SubsetRandomSampler(valid_indices))
-    test_loader = DataLoader(dataset, batch_size=args.not_train_batch_size, sampler=SubsetRandomSampler(test_indices))
-
+    # Print the content of the data object
+    print("Data object:", data)
+    print("Number of nodes in data:", data.num_nodes)
+    print("Number of features in data:", data.num_features)
     
-    nlabels = dataset.num_classes
-    in_channels = dataset.x.size(1)
-    out_channels = dataset.num_classes
+    # Assuming the dataset is a single graph, we'll split node indices
+    num_nodes = data.x.size(0)  # Assuming x is the node feature matrix
+    node_indices = torch.arange(num_nodes)
+    train_size = int(0.8 * num_nodes)
+    valid_size = (num_nodes - train_size) // 2
+    test_size = num_nodes - train_size - valid_size
+    train_indices, valid_indices, test_indices = [list(subset.indices) for subset in random_split(node_indices, [train_size, valid_size, test_size])]
+    split_idx = {'train':train_indices, 'valid':valid_indices, 'test':test_indices}
+        
+    data = data.to(device)
+    train_idx = split_idx['train']
 
     model_dir = prepare_folder('elliptic', args.model)
     print('model_dir:', model_dir)
-
+    
+    in_channels = dataset.data.x.size(1)
+    nlabels = 2
     if args.model == 'gcn':
         para_dict = gcn_parameters
         model_para = gcn_parameters.copy()
         model_para.pop('lr')
         model_para.pop('l2')
-        model = GCN(in_channels = in_channels, out_channels = out_channels, **model_para).to(device)
+        model = GCN(in_channels = in_channels, out_channels = nlabels, **model_para).to(device)
     if args.model == 'sage':
         para_dict = sage_parameters
         model_para = sage_parameters.copy()
         model_para.pop('lr')
         model_para.pop('l2')
-        model = SAGE(in_channels = in_channels, out_channels = out_channels, **model_para).to(device)
+        model = SAGE(in_channels = in_channels, out_channels = nlabels, **model_para).to(device)
 
     print(f'Model {args.model} initialized')
+    optimizer = torch.optim.Adam(model.parameters(), lr=para_dict['lr'], weight_decay=para_dict['l2'])
 
     print(sum(p.numel() for p in model.parameters()))
 
@@ -123,21 +139,22 @@ def main():
     min_valid_loss = 1e8
 
     for epoch in range(1, args.epoch + 1):
-        train_loss = train(model, train_loader, optimizer, device)
+        train_loss = train(model, data, train_idx, optimizer)  
         print(f'Epoch: {epoch}/{args.epoch}, Train Loss: {train_loss:.4f}')
 
-        valid_loss, _ = test(model, valid_loader, device)  # Evaluate on the validation set
+        losses, accuracies, y_pred = test(model, data, split_idx)  
+        valid_loss = losses['valid']
         
         if valid_loss < min_valid_loss:
             min_valid_loss = valid_loss
             torch.save(model.state_dict(), model_dir + 'model.pt')
 
         if epoch % args.log_steps == 0:
-            print(f'Epoch: {epoch:02d}, Valid Loss: {valid_loss:.4f}')
+            print(f'Epoch: {epoch:02d}, Valid Loss: {valid_loss:.4f}, Valid Acc: {accuracies["valid"]:.4f}')
 
-    # After training is complete, you can evaluate the model on the test set
-    test_loss, _ = test(model, test_loader, device)
-    print(f'Test Loss: {test_loss:.4f}')
+    # After training is complete
+    losses, accuracies, y_pred = test(model, data, split_idx)
+    print(f'Test Loss: {losses["test"]:.4f}, Test Acc: {accuracies["test"]:.4f}')
 
 
 if __name__ == "__main__":

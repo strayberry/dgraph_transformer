@@ -76,7 +76,6 @@ class EllipticTemporalDataset(Dataset):
         ids = nodes_features[:, 0].unsqueeze(1)
         merged_tensor = torch.cat((ids, nodes_features[:, 1:], nodes_times[:, 1:], nodes_labels[:, 1:]), dim=1)
         
-
         # Filter out rows where the last value is -1
         valid_rows = merged_tensor[:, -1] != -1
         merged_tensor = merged_tensor[valid_rows]

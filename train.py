@@ -96,11 +96,12 @@ def main():
     device = torch.device(device)
 
     dataset = XYGraphP1(root='./', name='xydata', transform=T.ToSparseTensor())
-    
+    print(f"dataset:{dataset}")
     nlabels = dataset.num_classes
     if args.dataset in ['XYGraphP1']: nlabels = 2
         
     data = dataset[0]
+    print(f"data:{data}")
     data.adj_t = data.adj_t.to_symmetric()
         
     if args.dataset in ['XYGraphP1']:
@@ -110,6 +111,7 @@ def main():
     if data.y.dim()==2:
         data.y = data.y.squeeze(1)        
     
+    print(data)
     split_idx = {'train':data.train_mask, 'valid':data.valid_mask, 'test':data.test_mask}
         
     data = data.to(device)

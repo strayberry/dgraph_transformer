@@ -51,21 +51,28 @@ def test(model, loader, device):
 
     all_pred = []
     all_loss = []
+    all_accuracies = []
+
     for data in loader:
         x = data['x'].to(device)  # Assuming 'x' is the input feature tensor in your dataset
         y = data['y'].to(device)  # Assuming 'y' is the label tensor in your dataset
-        
 
         out = model(x)  # Forward pass through the model for MLP
 
+        # Predictions and loss
         y_pred = out.argmax(dim=1)  # Convert model's output probabilities to predicted classes
         all_pred.append(y_pred)
-
         loss = F.nll_loss(out, y)  # Compute the negative log likelihood loss
         all_loss.append(loss.item())
 
+        # Accuracy calculation
+        correct_predictions = y_pred.eq(y).sum().item()
+        acc = correct_predictions / len(y)
+        all_accuracies.append(acc)
+
     average_loss = sum(all_loss) / len(loader)
-    return average_loss, torch.cat(all_pred)
+    average_accuracy = sum(all_accuracies) / len(loader)
+    return average_loss, average_accuracy, torch.cat(all_pred)
 
 
 def main():
@@ -121,18 +128,18 @@ def main():
         train_loss = train(model, train_loader, optimizer, device)
         print(f'Epoch: {epoch}/{args.epoch}, Train Loss: {train_loss:.4f}')
 
-        valid_loss, _ = test(model, valid_loader, device)  # Evaluate on the validation set
-        
+        valid_loss, valid_accuracy, _ = test(model, valid_loader, device)  # Evaluate on the validation set
+            
         if valid_loss < min_valid_loss:
             min_valid_loss = valid_loss
             torch.save(model.state_dict(), model_dir + 'model.pt')
 
         if epoch % args.log_steps == 0:
-            print(f'Epoch: {epoch:02d}, Valid Loss: {valid_loss:.4f}')
+            print(f'Epoch: {epoch:02d}, Valid Loss: {valid_loss:.4f}, Valid Accuracy: {valid_accuracy:.4f}')
 
     # After training is complete, you can evaluate the model on the test set
-    test_loss, _ = test(model, test_loader, device)
-    print(f'Test Loss: {test_loss:.4f}')
+    test_loss, test_accuracy, _ = test(model, test_loader, device)
+    print(f'Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}')
 
 
 if __name__ == "__main__":
