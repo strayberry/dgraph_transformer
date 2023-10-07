@@ -1,5 +1,4 @@
 import torch
-import numpy as np
 from torch import Tensor, nn
 from transformers.models.bert.modeling_bert import BertEncoder
 from transformers.models.bert.configuration_bert import BertConfig
@@ -24,28 +23,57 @@ class MLP(nn.Module):
         return hidden_state
 
 
+def calculate_edge_variance(edge_start_timestamps, edge_end_timestamps, num_nodes):
+    edge_counts_per_node = {}
+    
+    if edge_start_timestamps is not None:
+        # Handle start timestamps
+        for ts in edge_start_timestamps:
+            key = ts[0].item()
+            if key not in edge_counts_per_node:
+                edge_counts_per_node[key] = []
+            edge_counts_per_node[key].append(ts[1].item())
+            
+    if edge_end_timestamps is not None:
+        # Handle end timestamps
+        for ts in edge_end_timestamps:
+            key = ts[0].item()
+            if key not in edge_counts_per_node:
+                edge_counts_per_node[key] = []
+            edge_counts_per_node[key].append(ts[1].item())
+
+    variances = []
+    for i in range(num_nodes):
+        if i in edge_counts_per_node:
+            variances.append(np.var(edge_counts_per_node[i]))
+        else:
+            variances.append(0)
+
+    return torch.tensor(variances, dtype=torch.float)
+
+
 class GraphTransformer(nn.Module):
 
     def __init__(self, args):
         super().__init__()
         config = BertConfig.from_pretrained(args.torch_model_dir)
         config.use_relative_position = False
-        config.input_dim = 17
-        config.hidden_size = 128
-        config.intermediate_size = 512
-        config.num_attention_heads = 8
-        config.num_hidden_layers = 2
+        config.input_dim = 168 #dg 18
+        config.hidden_size = 128 #dg 128
+        config.intermediate_size = 512  #dg 512
+        config.num_attention_heads = 8 #dg 8
+        config.num_hidden_layers = 2   #dg 2
         self.x_embedding = MLP(config)
-        self.edge_type_embedding = nn.Embedding(12, config.hidden_size)
-        self.timestamp_embedding = nn.Embedding(579, config.hidden_size)
+        self.edge_type_embedding = nn.Embedding(2, config.hidden_size) #dg 12
+        self.timestamp_embedding = nn.Embedding(49, config.hidden_size)   #dg 579
 
-        config.vocab_size = 4
-        config.max_position_embeddings = 762
+        config.vocab_size = 4 #dg 4
+        config.max_position_embeddings = 762 #dg 762
         self.node_transformer = BertEncoder(config)
 
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-        self.classification = nn.Linear(config.hidden_size, 4)
+        self.classification1 = nn.Linear(config.hidden_size, 2)  #dg 2
         self.bilstm = nn.LSTM(input_size=config.hidden_size, hidden_size=config.hidden_size // 2, num_layers=1, bidirectional=True)
         self.apply(self._init_weights)
 
@@ -73,7 +101,15 @@ class GraphTransformer(nn.Module):
                 y=None,
                 output_hidden_states=True,
                 attention_mask=None):
-        x_hidden_state = self.x_embedding(x)
+        # Check if both timestamps are None
+        if start_edge_timestamp is None and end_edge_timestamp is None:
+            edge_variances = torch.zeros((x.size(0), 1), device=x.device, dtype=torch.float)
+        else:
+            edge_variances = calculate_edge_variance(start_edge_timestamp, end_edge_timestamp, x.size(0))
+            edge_variances = edge_variances.unsqueeze(-1)
+
+        x_with_variance = torch.cat([x, edge_variances], dim=-1)
+        x_hidden_state = self.x_embedding(x_with_variance)
         back_x_hidden_state = self.x_embedding(back_x)
         front_x_hidden_state = self.x_embedding(front_x)
         edge_start_hidden_state = self.edge_type_embedding(edge_start_type)
@@ -99,10 +135,10 @@ class GraphTransformer(nn.Module):
         ).last_hidden_state.mean(1)
 
         outputs, _ = self.bilstm(hidden_state)  # Shape: (batch_size, seq_length, hidden_size)
-        logits = self.classification(hidden_state)
+        hidden_state = outputs.squeeze(1)
 
         hidden_state = self.dropout(hidden_state)
-        logits = self.classification(hidden_state)
+        logits = self.classification1(hidden_state)
 
         return_dict = {'logits': logits}
         if y is not None:

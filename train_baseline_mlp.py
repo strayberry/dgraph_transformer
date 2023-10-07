@@ -103,7 +103,7 @@ def main():
     train_loader = DataLoader(dataset, batch_size=args.train_batch_size, sampler=SubsetRandomSampler(train_indices), collate_fn=collate_fn)
     valid_loader = DataLoader(dataset, batch_size=args.train_batch_size, sampler=SubsetRandomSampler(valid_indices), collate_fn=collate_fn)
     test_loader = DataLoader(dataset, batch_size=args.not_train_batch_size, sampler=SubsetRandomSampler(test_indices), collate_fn=collate_fn)
-    
+
     nlabels = dataset.num_classes
 
     model_dir = prepare_folder('elliptic', args.model)
@@ -129,7 +129,7 @@ def main():
         print(f'Epoch: {epoch}/{args.epoch}, Train Loss: {train_loss:.4f}')
 
         valid_loss, valid_accuracy, _ = test(model, valid_loader, device)  # Evaluate on the validation set
-            
+
         if valid_loss < min_valid_loss:
             min_valid_loss = valid_loss
             torch.save(model.state_dict(), model_dir + 'model.pt')

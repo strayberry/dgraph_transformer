@@ -1,17 +1,19 @@
+import os
 import torch
-from config import parser_args
+import numpy as np
+
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from torch import Tensor, nn
 from transformers.models.bert.modeling_bert import BertEncoder
-from transformers.models.bert.configuration_bert import BertConfig
+from transformers import BertModel, BertConfig
 from torch.optim import AdamW
 from transformers.optimization import get_linear_schedule_with_warmup
 from logger import logger
 from sklearn.metrics import roc_auc_score
-import os
 from typing import Tuple
 
+from config import parser_args
 from utils.graph_dataset import GraphDataset
 from utils.tools import AverageMeter, collate_fn
 from models.dgt import MLP
@@ -27,18 +29,19 @@ class PretrainGraphTransformer(nn.Module):
         config.intermediate_size = 512
         config.num_attention_heads = 8
         config.num_hidden_layers = 2
+        config.vocab_size = 4
+        config.max_position_embeddings = 762
+
         self.x_embedding = MLP(config)
         self.edge_type_embedding = nn.Embedding(12, config.hidden_size)
         self.timestamp_embedding = nn.Embedding(579, config.hidden_size)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.classification = nn.Linear(config.hidden_size, 2)
+        self.bilstm = nn.LSTM(input_size=config.hidden_size, hidden_size=config.hidden_size // 2, num_layers=1, bidirectional=True)
+        self.apply(self._init_weights)
 
-        config.vocab_size = 4
-        config.max_position_embeddings = 762
         self.node_transformer = BertEncoder(config)
 
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
-
-        self.classification = nn.Linear(config.hidden_size, 4)
-        self.apply(self._init_weights)
 
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
@@ -88,12 +91,16 @@ class PretrainGraphTransformer(nn.Module):
             attention_mask=extended_attention_mask,
             output_hidden_states=output_hidden_states
         ).last_hidden_state.mean(1)
+
+        outputs, _ = self.bilstm(hidden_state)  # Shape: (batch_size, seq_length, hidden_size)
+        hidden_state = outputs.squeeze(1)  
+
         hidden_state = self.dropout(hidden_state)
         logits = self.classification(hidden_state)
 
         return_dict = {'logits': logits}
         if y is not None:
-            loss_fn = nn.CrossEntropyLoss(weight=torch.tensor([1, 20], dtype=torch.float, device=logits.device))
+            loss_fn = nn.CrossEntropyLoss()
             loss = loss_fn(logits, y)
             return_dict['loss'] = loss.mean()
         return return_dict

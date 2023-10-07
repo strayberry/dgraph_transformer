@@ -48,7 +48,7 @@ def train(args):
     steps = 0
     auc = 0
 
-    for epoch in range(1, 2):
+    for epoch in range(1, args.epoch + 1):
         loss_avg = AverageMeter('loss')
         train_auc = AverageMeter('auc')
         with tqdm(train_dataloader, unit_scale=True, desc=f'epoch {epoch} training', colour='blue') as pbar:

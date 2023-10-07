@@ -1,23 +1,15 @@
 from utils.elliptic_dataset_gcn import EllipticTemporalDataset
 from utils.utils import prepare_folder
-from models.mlp import MLP, MLPLinear
 from models.gcn import GCN
 from models.sage import SAGE
 
 from config import parser_args
 from logger import logger
 
-import os
 import torch
 import torch.nn.functional as F
-import torch.nn as nn
 import torch_geometric.transforms as T
 from torch.utils.data import random_split
-from torch_geometric.data import DataLoader
-from torch.utils.data.sampler import SubsetRandomSampler
-
-import pandas as pd
-from sklearn.model_selection import train_test_split
 
 
 gcn_parameters = {'lr':0.01

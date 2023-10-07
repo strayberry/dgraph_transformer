@@ -1,6 +1,5 @@
 import torch
 import os
-import random
 import numpy as np
 
 from config import parser_args
@@ -14,12 +13,12 @@ from sklearn.metrics import roc_auc_score
 
 from logger import logger
 
-from utils.tools import AverageMeter, collate_fn
+from utils.tools_elliptic import AverageMeter, collate_fn
 from utils.graph_dataset import GraphDataset
 from utils.as_dataset import AutonomousSystemsDataset
 from utils.elliptic_dataset import EllipticTemporalDataset
 from utils.reddit_dataset import RedditDataset
-from models.dgt import GraphTransformer
+from models.dgt_elliptic import GraphTransformer
 
 
 def train_all(args):

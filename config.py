@@ -16,7 +16,6 @@ data_path = os.path.join(root_path, 'data/phase1_gdata.npz')
 # ========================== BERT Configs =============================
 torch_model_dir = os.path.join(root_path, 'libs/nezha-cn-base')
 save_model_dir = os.path.join(root_path, 'save_models')
-pretrain_save_model_dir = os.path.join(root_path, 'save_models/pretrain')
 
 pretrained_model = 'auc_0.76194_loss_0.73239_epoch_5_pretrain_model.bin'
 trained_model = 'epoch_200_model.bin'
@@ -46,7 +45,6 @@ def parser_args():
     parser.add_argument('--warmup_ratio', type=float, default=0.01)
     parser.add_argument('--seed', type=int, default=2023)
     parser.add_argument('--save_model_dir', type=str, default=save_model_dir)
-    parser.add_argument('--pretrain_save_model_dir', type=str, default=pretrain_save_model_dir)
     parser.add_argument('--pretrained_model', type=str, default=pretrained_model)
     parser.add_argument('--trained_model', type=str, default=trained_model)
 
