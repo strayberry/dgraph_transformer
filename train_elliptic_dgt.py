@@ -13,7 +13,6 @@ from transformers.optimization import get_linear_schedule_with_warmup
 from sklearn.metrics import roc_auc_score
 
 from utils.tools import AverageMeter, collate_fn
-from utils.graph_dataset import GraphDataset
 from utils.as_dataset import AutonomousSystemsDataset
 from utils.elliptic_dataset import EllipticTemporalDataset
 from utils.reddit_dataset import RedditDataset

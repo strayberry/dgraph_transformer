@@ -36,7 +36,7 @@ def parser_args():
     parser.add_argument('--epoch', type=int, default=10)
     parser.add_argument('--num_works', type=int, default=4)
     parser.add_argument('--device', type=str, default='cuda:5')
-    parser.add_argument('--lr', type=float, default=1e-4)
+    parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--weight_decay', type=float, default=1e-7)
     parser.add_argument('--warmup_ratio', type=float, default=0.01)
     parser.add_argument('--seed', type=int, default=2023)
@@ -47,6 +47,12 @@ def parser_args():
 
     # ========================== Interface Configs =============================
     parser.add_argument('--submit_path', type=str, default=submit_path)
+
+    # ========================== Ablation =============================
+    parser.add_argument('--use_time_features', default=True, type=bool, help='Whether to use time features')
+    parser.add_argument('--use_time_ordering', default=True, type=bool, help='Whether to use time ordering')
+    parser.add_argument('--use_bilstm', default=True, type=bool, help='Whether to use BiLSTM layer')
+    parser.add_argument('--use_pretraining', default=True, type=bool, help='Whether to use pre-trained weights')
 
     return parser.parse_args()
 

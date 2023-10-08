@@ -75,3 +75,15 @@ def collate_fn(batch):
         'front_x': torch.tensor(pad_front_x).to(torch.float),
         'attention_mask': attention_mask
     }
+
+
+def check_tensor_empty(tensor_a, tensor_b):
+    if tensor_a.shape[1] == 0:  # tensor_a is empty
+        new_shape = list(tensor_b.shape)
+        new_shape[1] = 1
+        return torch.zeros(new_shape, dtype=tensor_b.dtype).to(tensor_b.device)
+    if tensor_b.shape[1] == 0:  # tensor_b is empty
+        new_shape = list(tensor_a.shape)
+        new_shape[1] = 1
+        return torch.zeros(new_shape, dtype=tensor_a.dtype).to(tensor_a.device)
+    return tensor_a

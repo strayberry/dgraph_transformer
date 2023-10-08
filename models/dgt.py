@@ -52,14 +52,18 @@ class MLP(nn.Module):
 
 
 class GraphTransformer(nn.Module):
-
     def __init__(self, args):
+        self.args = args
         super().__init__()
-        if args.dataset_name == 'DGraphFin':
+        if self.args.dataset_name == 'DGraphFin':
             model_config = dgraph_fin_config.copy()
-        elif args.dataset_name == 'Elliptic':
+        elif self.args.dataset_name == 'Elliptic':
             model_config = elliptic_config.copy()
-        config = BertConfig.from_pretrained(args.torch_model_dir)
+        # Ablation: 不使用预训练权重
+        if self.args.use_pretraining:
+            config = BertConfig.from_pretrained(self.args.torch_model_dir)
+        else:
+            config = BertConfig()
         config.use_relative_position = False
         config.input_dim = model_config['input_dim']
         config.hidden_size = model_config['hidden_size']
@@ -109,13 +113,26 @@ class GraphTransformer(nn.Module):
         front_x_hidden_state = self.x_embedding(front_x)
         edge_start_hidden_state = self.edge_type_embedding(edge_start_type)
         edge_end_hidden_state = self.edge_type_embedding(edge_end_type)
+        # Ablation: 不使用时间特征
+        if self.args.use_time_features:
+            start_timestamp_hidden_state = self.timestamp_embedding(start_edge_timestamp)
+            end_timestamp_hidden_state = self.timestamp_embedding(end_edge_timestamp)
+        else:
+            start_timestamp_hidden_state = torch.zeros_like(back_x_hidden_state)
+            end_timestamp_hidden_state = torch.zeros_like(front_x_hidden_state)
+        
         start_timestamp_hidden_state = self.timestamp_embedding(start_edge_timestamp)
         end_timestamp_hidden_state = self.timestamp_embedding(end_edge_timestamp)
 
         # 把x拼接在在x后面的节点的前面，把x拼接在在x前面的节点的后面，加上时间信息，使输出即能包含方向又能包含时间(方向，两点之间关系主要是transformer)
         x_nodes_embedding = back_x_hidden_state + edge_start_hidden_state + start_timestamp_hidden_state
         nodes_x_embedding = front_x_hidden_state + edge_end_hidden_state + end_timestamp_hidden_state
-        nodes_x_nodes_emb = torch.cat([nodes_x_embedding, x_hidden_state.unsqueeze(1), x_nodes_embedding], dim=1)
+        
+        # Ablation: 不按照边的生成顺序拼接
+        if self.args.use_time_ordering:
+            nodes_x_nodes_emb = torch.cat([nodes_x_embedding, x_hidden_state.unsqueeze(1), x_nodes_embedding], dim=1)
+        else:
+            nodes_x_nodes_emb = torch.cat([x_hidden_state.unsqueeze(1), x_nodes_embedding, nodes_x_embedding], dim=1)
 
         input_shape = nodes_x_nodes_emb.size()[:-1]
         batch_size, seq_length = input_shape
@@ -128,10 +145,14 @@ class GraphTransformer(nn.Module):
             attention_mask=extended_attention_mask,
             output_hidden_states=output_hidden_states
         ).last_hidden_state.mean(1)
-
-        outputs, _ = self.bilstm(hidden_state)  # Processing through BiLSTM
-        outputs = self.dropout(outputs)  # Applying dropout on the BiLSTM output
-        logits = self.classification(outputs)  # Classifying the processed output
+        
+        # Ablation: 不使用BiLSTM
+        if self.args.use_bilstm:
+            outputs, _ = self.bilstm(hidden_state)
+        else:
+            outputs = hidden_state
+        outputs = self.dropout(outputs)
+        logits = self.classification(outputs)
 
         return_dict = {'logits': logits}
         if y is not None:

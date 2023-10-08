@@ -18,14 +18,20 @@ from models.dgt import GraphTransformer
 def train(args):
     dataset = GraphDataset(args)
     train_mask = dataset.train_mask.tolist()
-    all_train_index = dataset.train_index.tolist()
     valid_index = random.sample(train_mask, 10000)
     train_index = list(set(train_mask).difference(set(valid_index)))
+    # Ablation: 不按照时间顺序排列
+    if args.use_time_ordering:
+        train_index = train_index
+        valid_index = valid_index
+    else:
+        train_index = sorted(train_index)
+        valid_index = sorted(valid_index)
     train_dataset = torch.utils.data.Subset(dataset=dataset, indices=train_index)
     val_dataset = torch.utils.data.Subset(dataset=dataset, indices=valid_index)
     train_dataloader = DataLoader(dataset=train_dataset,
                                   batch_size=args.train_batch_size,
-                                  shuffle=True,
+                                  shuffle=False,
                                   num_workers=args.num_works,
                                   collate_fn=collate_fn)
     valid_dataloader = DataLoader(dataset=val_dataset,
@@ -92,16 +98,6 @@ def train(args):
                     pbar.set_postfix({'loss': f'{loss_avg.avg:.5f}',
                                     'auc': f'{train_auc.avg:.5f}',
                                     'lr': f"{scheduler.get_last_lr()[0]:.7f}"})
-
-                    # if epoch == 1 and steps % 100 == 0 and steps >= 12000:
-                    #     valid_res = evaluate(model, valid_dataloader, args)
-                    #     auc = valid_res['auc']
-                    #     loss = valid_res['loss']
-                    #     logger.info(f'epoch {epoch} | steps {steps} | loss {loss_avg.val:.5f} | '
-                    #                 f"valid loss {loss:.5f} | valid auc {auc:.5f}")
-                    #     torch.save(model.state_dict(),
-                    #                os.path.join(args.save_model_dir,
-                    #                             f"auc_{auc:.5f}_loss_{loss:.5f}_steps_{steps}_epoch_{epoch}_model.bin"))
 
                     pbar.update(1)
                 except Exception as e:
