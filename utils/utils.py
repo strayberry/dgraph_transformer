@@ -1,7 +1,8 @@
-import torch
+
 import os
-from datetime import datetime
 import shutil
+import torch
+from datetime import datetime
 
 
 def prepare_folder(name, model_name):

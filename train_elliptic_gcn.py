@@ -1,15 +1,15 @@
-from utils.elliptic_dataset_gcn import EllipticTemporalDataset
-from utils.utils import prepare_folder
-from models.gcn import GCN
-from models.sage import SAGE
-
-from config import parser_args
-from logger import logger
-
 import torch
 import torch.nn.functional as F
 import torch_geometric.transforms as T
+
+from logger import logger
 from torch.utils.data import random_split
+
+from models.gcn import GCN
+from models.sage import SAGE
+from config import parser_args
+from utils.utils import prepare_folder
+from utils.elliptic_dataset_gcn import EllipticTemporalDataset
 
 
 gcn_parameters = {'lr':0.01
@@ -64,7 +64,7 @@ def test(model, data, split_idx):
 def main():
     args = parser_args()
     args.elliptic_args = {'folder': '/home/ubuntu/2022_finvcup_baseline/data/elliptic_temporal','tar_file': 'elliptic_bitcoin_dataset_cont.tar.gz','classes_file': 'elliptic_bitcoin_dataset_cont/elliptic_txs_classes.csv','times_file': 'elliptic_bitcoin_dataset_cont/elliptic_txs_nodetime.csv','edges_file': 'elliptic_bitcoin_dataset_cont/elliptic_txs_edgelist_timed.csv','feats_file': 'elliptic_bitcoin_dataset_cont/elliptic_txs_features.csv'}
-    args.dataset = 'Elliptic'
+    args.dataset_name = 'Elliptic'
     args.model = 'sage'
     args.log_steps = 1
     logger.info(args)
@@ -79,7 +79,7 @@ def main():
     print(f"data:{data}")
     data.adj_t = data.adj_t.to_symmetric()
 
-    if args.dataset in ['Elliptic']:
+    if args.dataset_name in ['Elliptic']:
         x = data.x
         x = (x-x.mean(0))/x.std(0)
         data.x = x

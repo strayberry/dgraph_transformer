@@ -7,6 +7,33 @@ from transformers.activations import GELUActivation
 from typing import Tuple
 
 
+dgraph_fin_config = {
+    'input_dim': 17,
+    'hidden_size': 128,
+    'intermediate_size': 512,
+    'num_attention_heads': 8,
+    'num_hidden_layers': 2,
+    'edge_type_embedding': 12,
+    'timestamp_embedding': 579,
+    'vocab_size': 4,
+    'max_position_embeddings': 762,
+    'classification': 4
+}
+
+elliptic_config = {
+    'input_dim': 167,
+    'hidden_size': 128,
+    'intermediate_size': 512,
+    'num_attention_heads': 8,
+    'num_hidden_layers': 2,
+    'edge_type_embedding': 2,
+    'timestamp_embedding': 49,
+    'vocab_size': 4,
+    'max_position_embeddings': 762,
+    'classification': 2
+}
+
+
 class MLP(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -28,24 +55,28 @@ class GraphTransformer(nn.Module):
 
     def __init__(self, args):
         super().__init__()
+        if args.dataset_name == 'DGraphFin':
+            model_config = dgraph_fin_config.copy()
+        elif args.dataset_name == 'Elliptic':
+            model_config = elliptic_config.copy()
         config = BertConfig.from_pretrained(args.torch_model_dir)
         config.use_relative_position = False
-        config.input_dim = 17
-        config.hidden_size = 128
-        config.intermediate_size = 512
-        config.num_attention_heads = 8
-        config.num_hidden_layers = 2
+        config.input_dim = model_config['input_dim']
+        config.hidden_size = model_config['hidden_size']
+        config.intermediate_size = model_config['intermediate_size']
+        config.num_attention_heads = model_config['num_attention_heads']
+        config.num_hidden_layers = model_config['num_hidden_layers']
         self.x_embedding = MLP(config)
-        self.edge_type_embedding = nn.Embedding(12, config.hidden_size)
-        self.timestamp_embedding = nn.Embedding(579, config.hidden_size)
+        self.edge_type_embedding = nn.Embedding(model_config['edge_type_embedding'], config.hidden_size)
+        self.timestamp_embedding = nn.Embedding(model_config['timestamp_embedding'], config.hidden_size)
 
-        config.vocab_size = 4
-        config.max_position_embeddings = 762
+        config.vocab_size = model_config['vocab_size']
+        config.max_position_embeddings = model_config['max_position_embeddings']
         self.node_transformer = BertEncoder(config)
 
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-        self.classification = nn.Linear(config.hidden_size, 4)
+        self.classification = nn.Linear(config.hidden_size, model_config['classification'])
         self.bilstm = nn.LSTM(input_size=config.hidden_size, hidden_size=config.hidden_size // 2, num_layers=1, bidirectional=True)
         self.apply(self._init_weights)
 
@@ -98,11 +129,9 @@ class GraphTransformer(nn.Module):
             output_hidden_states=output_hidden_states
         ).last_hidden_state.mean(1)
 
-        outputs, _ = self.bilstm(hidden_state)  # Shape: (batch_size, seq_length, hidden_size)
-        logits = self.classification(hidden_state)
-
-        hidden_state = self.dropout(hidden_state)
-        logits = self.classification(hidden_state)
+        outputs, _ = self.bilstm(hidden_state)  # Processing through BiLSTM
+        outputs = self.dropout(outputs)  # Applying dropout on the BiLSTM output
+        logits = self.classification(outputs)  # Classifying the processed output
 
         return_dict = {'logits': logits}
         if y is not None:

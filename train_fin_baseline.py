@@ -1,20 +1,13 @@
-# dataset name: XYGraphP1
+import argparse
+import torch
+import torch.nn.functional as F
+import torch_geometric.transforms as T
+
 from utils.xygraph import XYGraphP1
 from utils.utils import prepare_folder
 from models.mlp import MLP, MLPLinear
 from models.gcn import GCN
 from models.sage import SAGE
-
-import argparse
-
-import torch
-import torch.nn.functional as F
-import torch.nn as nn
-
-import torch_geometric.transforms as T
-from torch_sparse import SparseTensor
-from torch_geometric.utils import to_undirected
-import pandas as pd
 
 
 mlp_parameters = {'lr':0.01

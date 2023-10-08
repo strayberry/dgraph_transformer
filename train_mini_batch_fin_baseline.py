@@ -1,23 +1,16 @@
-# dataset name: XYGraphP1
+import argparse
+import torch
+import torch.nn.functional as F
+import torch_geometric.transforms as T
+
+from tqdm import tqdm
+from torch_geometric.data import NeighborSampler
 
 from utils import XYGraphP1
 from utils.utils import prepare_folder
-from utils.evaluator import Evaluator
-from torch_geometric.data import NeighborSampler
 from models.sage_neighsampler import SAGE_NeighSampler
 from models.gat_neighsampler import GAT_NeighSampler, GATv2_NeighSampler
-from tqdm import tqdm
 
-import argparse
-
-import torch
-import torch.nn.functional as F
-import torch.nn as nn
-
-import torch_geometric.transforms as T
-from torch_sparse import SparseTensor
-from torch_geometric.utils import to_undirected
-import pandas as pd
 
 eval_metric = 'auc'
 

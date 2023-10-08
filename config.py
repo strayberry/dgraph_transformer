@@ -1,11 +1,6 @@
 import os
 import argparse
 
-from utils.graph_dataset import GraphDataset
-from utils.as_dataset import AutonomousSystemsDataset
-from utils.elliptic_dataset import EllipticTemporalDataset
-from utils.reddit_dataset import RedditDataset
-
 
 root_path = os.path.abspath(os.path.dirname(__file__))
 log_path = os.path.join(root_path, 'log/log.log')
@@ -20,6 +15,7 @@ save_model_dir = os.path.join(root_path, 'save_models')
 pretrained_model = 'auc_0.76194_loss_0.73239_epoch_5_pretrain_model.bin'
 trained_model = 'epoch_200_model.bin'
 submit_path = os.path.join(root_path, 'data/submit.npy')
+dataset_name = 'DGraphFin'
 
 
 def parser_args():
@@ -47,6 +43,7 @@ def parser_args():
     parser.add_argument('--save_model_dir', type=str, default=save_model_dir)
     parser.add_argument('--pretrained_model', type=str, default=pretrained_model)
     parser.add_argument('--trained_model', type=str, default=trained_model)
+    parser.add_argument('--dataset_name', type=str, default=dataset_name)
 
     # ========================== Interface Configs =============================
     parser.add_argument('--submit_path', type=str, default=submit_path)

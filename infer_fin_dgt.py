@@ -1,13 +1,13 @@
-import numpy as np
+import os
 import torch
-from config import parser_args
-from torch.utils.data import DataLoader
-from sklearn.metrics import roc_auc_score
+import numpy as np
+
 from tqdm import tqdm
 from logger import logger
-import os
-import random
+from torch.utils.data import DataLoader
+from sklearn.metrics import roc_auc_score
 
+from config import parser_args
 from utils.graph_dataset import GraphDataset
 from utils.tools import AverageMeter, collate_fn
 from models.dgt import GraphTransformer

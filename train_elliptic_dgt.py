@@ -1,24 +1,23 @@
-import torch
 import os
+import torch
 import numpy as np
 
 from config import parser_args
 from torch.utils.data import DataLoader
 
 from tqdm import tqdm
+from logger import logger
 from torch.optim import AdamW
 from torch.utils.data.sampler import SubsetRandomSampler
 from transformers.optimization import get_linear_schedule_with_warmup
 from sklearn.metrics import roc_auc_score
 
-from logger import logger
-
-from utils.tools_elliptic import AverageMeter, collate_fn
+from utils.tools import AverageMeter, collate_fn
 from utils.graph_dataset import GraphDataset
 from utils.as_dataset import AutonomousSystemsDataset
 from utils.elliptic_dataset import EllipticTemporalDataset
 from utils.reddit_dataset import RedditDataset
-from models.dgt_elliptic import GraphTransformer
+from models.dgt import GraphTransformer
 
 
 def train_all(args):
@@ -146,11 +145,12 @@ def evaluate(model, valid_dataloader, args):
 
 if __name__ == '__main__':
     args = parser_args()
-    #args.aut_sys_args = {'folder': '/home/ubuntu/2022_finvcup_baseline/data/','tar_file': 'as-733.tar.gz','steps_accounted': 100,'aggr_time': 1}
-    #args.dataset = AutonomousSystemsDataset(args)
     args.elliptic_args = {'folder': '/home/ubuntu/2022_finvcup_baseline/data/elliptic_temporal','tar_file': 'elliptic_bitcoin_dataset_cont.tar.gz','classes_file': 'elliptic_bitcoin_dataset_cont/elliptic_txs_classes.csv','times_file': 'elliptic_bitcoin_dataset_cont/elliptic_txs_nodetime.csv','edges_file': 'elliptic_bitcoin_dataset_cont/elliptic_txs_edgelist_timed.csv','feats_file': 'elliptic_bitcoin_dataset_cont/elliptic_txs_features.csv'}
     args.dataset = EllipticTemporalDataset(args)
+    args.dataset_name = 'Elliptic'
     #args.reddit_args = {'folder': '/home/ubuntu/2022_finvcup_baseline/data/reddit/','feats_file': 'web-redditEmbeddings-subreddits.csv','title_edges_file': 'soc-redditHyperlinks-title.tsv','body_edges_file': 'soc-redditHyperlinks-body.tsv','aggr_time': 1}
     #args.dataset = RedditDataset(args)
+    #args.aut_sys_args = {'folder': '/home/ubuntu/2022_finvcup_baseline/data/','tar_file': 'as-733.tar.gz','steps_accounted': 100,'aggr_time': 1}
+    #args.dataset = AutonomousSystemsDataset(args)
     logger.info(args)
     train_all(args)

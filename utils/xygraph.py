@@ -1,10 +1,10 @@
-from typing import Optional, Callable, List
-import os.path as osp
-
-import numpy as np
 import torch
-from torch_geometric.data import InMemoryDataset
+import os.path as osp
+import numpy as np
+
 from torch_geometric.data import Data
+from torch_geometric.data import InMemoryDataset
+from typing import Optional, Callable, List
 
 
 def read_xygraphp1(folder):

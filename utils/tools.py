@@ -54,8 +54,8 @@ def collate_fn(batch):
     pad_end_edge_timestamp = [i + [0] * max(end_edge_timestamp_max_length - len(i), 0) for i in end_edge_timestamp]
     pad_edge_start_type = [i + [0] * max(edge_start_type_max_length - len(i), 0) for i in edge_start_type]
     pad_edge_end_type = [i + [0] * max(edge_end_type_max_length - len(i), 0) for i in edge_end_type]
-    pad_back_x = [i + [[0] * 17] * max(back_x_max_length - len(i), 0) for i in back_x]
-    pad_front_x = [i + [[0] * 17] * max(front_x_max_length - len(i), 0) for i in front_x]
+    pad_back_x = [i + [[0] * len(x[0])] * max(back_x_max_length - len(i), 0) for i in back_x]
+    pad_front_x = [i + [[0] * len(x[0])] * max(front_x_max_length - len(i), 0) for i in front_x]
     pad_back_x_attention_mask = [i + [0] * max(back_x_max_length - len(i), 0) for i in back_x_attention_mask]
     pad_front_x_attention_mask = [i + [0] * max(front_x_max_length - len(i), 0) for i in front_x_attention_mask]
     attention_mask = torch.cat(

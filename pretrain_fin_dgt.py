@@ -2,21 +2,21 @@ import os
 import torch
 import numpy as np
 
-from torch.utils.data import DataLoader
+from logger import logger
+from typing import Tuple
 from tqdm import tqdm
 from torch import Tensor, nn
+from torch.optim import AdamW
+from torch.utils.data import DataLoader
 from transformers.models.bert.modeling_bert import BertEncoder
 from transformers import BertModel, BertConfig
-from torch.optim import AdamW
 from transformers.optimization import get_linear_schedule_with_warmup
-from logger import logger
 from sklearn.metrics import roc_auc_score
-from typing import Tuple
 
+from models.dgt import MLP
 from config import parser_args
 from utils.graph_dataset import GraphDataset
 from utils.tools import AverageMeter, collate_fn
-from models.dgt import MLP
 
 
 class PretrainGraphTransformer(nn.Module):

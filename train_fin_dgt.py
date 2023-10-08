@@ -1,14 +1,15 @@
-import torch
-from config import parser_args
-from torch.utils.data import DataLoader
-from tqdm import tqdm
-from torch.optim import AdamW
-from transformers.optimization import get_linear_schedule_with_warmup
-from logger import logger
-import random
-from sklearn.metrics import roc_auc_score
 import os
+import torch
+import random
 
+from tqdm import tqdm
+from logger import logger
+from torch.optim import AdamW
+from torch.utils.data import DataLoader
+from sklearn.metrics import roc_auc_score
+from transformers.optimization import get_linear_schedule_with_warmup
+
+from config import parser_args
 from utils.graph_dataset import GraphDataset
 from utils.tools import AverageMeter, collate_fn
 from models.dgt import GraphTransformer

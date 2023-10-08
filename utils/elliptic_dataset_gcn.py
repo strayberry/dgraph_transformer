@@ -1,11 +1,12 @@
-from typing import Optional, Callable, List
 import os
 import torch
 import pandas as pd
 import numpy as np
+
 from utils import utils as u
 from torch.utils.data.dataset import random_split
 from torch_geometric.data import InMemoryDataset, Data
+from typing import Optional, Callable, List
 
 
 def raw_file_names():

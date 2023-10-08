@@ -1,19 +1,17 @@
-from utils.elliptic_dataset import EllipticTemporalDataset
-from utils.utils import prepare_folder
-from models.mlp import MLP, MLPLinear
-
-from utils.tools import AverageMeter, collate_fn
-from config import parser_args
-from logger import logger
-
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
+
+from logger import logger
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
-
-import pandas as pd
 from sklearn.model_selection import train_test_split
+
+from config import parser_args
+from utils.elliptic_dataset import EllipticTemporalDataset
+from utils.tools import AverageMeter, collate_fn
+from utils.utils import prepare_folder
+from models.mlp import MLP, MLPLinear
 
 
 mlp_parameters = {'lr':0.01
@@ -78,11 +76,10 @@ def test(model, loader, device):
 def main():
     args = parser_args()
     args.elliptic_args = {'folder': '/home/ubuntu/2022_finvcup_baseline/data/elliptic_temporal','tar_file': 'elliptic_bitcoin_dataset_cont.tar.gz','classes_file': 'elliptic_bitcoin_dataset_cont/elliptic_txs_classes.csv','times_file': 'elliptic_bitcoin_dataset_cont/elliptic_txs_nodetime.csv','edges_file': 'elliptic_bitcoin_dataset_cont/elliptic_txs_edgelist_timed.csv','feats_file': 'elliptic_bitcoin_dataset_cont/elliptic_txs_features.csv'}
+    args.dataset_name = 'Elliptic'
     args.model = 'mlp'
     args.log_steps = 1
     logger.info(args)
-
-    random_seed = 2023      
     
     device = torch.device(args.device if torch.cuda.is_available() and args.device.startswith('cuda') else 'cpu')
 
