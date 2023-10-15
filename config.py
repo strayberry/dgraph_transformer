@@ -12,7 +12,7 @@ data_path = os.path.join(root_path, 'data/phase1_gdata.npz')
 torch_model_dir = os.path.join(root_path, 'libs/nezha-cn-base')
 save_model_dir = os.path.join(root_path, 'save_models')
 
-pretrained_model = 'auc_0.76194_loss_0.73239_epoch_5_pretrain_model.bin'
+pretrained_model = 'auc_0.75025_loss_1.05465_epoch_5_pretrain_model.bin'
 trained_model = 'epoch_200_model.bin'
 submit_path = os.path.join(root_path, 'data/submit.npy')
 dataset_name = 'DGraphFin'
@@ -31,12 +31,12 @@ def parser_args():
     parser.add_argument('--torch_model_dir', type=str, default=torch_model_dir)
 
     # ========================== Train Configs =============================
-    parser.add_argument('--train_batch_size', type=int, default=8)
+    parser.add_argument('--train_batch_size', type=int, default=32)
     parser.add_argument('--not_train_batch_size', type=int, default=256)
     parser.add_argument('--epoch', type=int, default=10)
     parser.add_argument('--num_works', type=int, default=4)
     parser.add_argument('--device', type=str, default='cuda:5')
-    parser.add_argument('--lr', type=float, default=1e-3)
+    parser.add_argument('--lr', type=float, default=1e-7)
     parser.add_argument('--weight_decay', type=float, default=1e-7)
     parser.add_argument('--warmup_ratio', type=float, default=0.01)
     parser.add_argument('--seed', type=int, default=2023)
