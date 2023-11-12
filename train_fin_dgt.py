@@ -16,7 +16,7 @@ from models.dgt import GraphTransformer
 
 
 def train(args):
-    dataset = GraphDataset(args)
+    dataset = GraphDataset(args, filter_labels=[0, 1])
     train_mask = dataset.train_mask.tolist()
     valid_index = random.sample(train_mask, 10000)
     train_index = list(set(train_mask).difference(set(valid_index)))
@@ -27,6 +27,7 @@ def train(args):
     else:
         train_index = sorted(train_index)
         valid_index = sorted(valid_index)
+
     train_dataset = torch.utils.data.Subset(dataset=dataset, indices=train_index)
     val_dataset = torch.utils.data.Subset(dataset=dataset, indices=valid_index)
     train_dataloader = DataLoader(dataset=train_dataset,

@@ -3,7 +3,7 @@ from torch.utils.data import Dataset
 
 
 class GraphDataset(Dataset):
-    def __init__(self, args):
+    def __init__(self, args, filter_labels=[0, 1]):
         data = np.load(args.data_path)
         self.x = data['x']
         self.x = (self.x - self.x.mean(0)) / self.x.std(0)
@@ -13,6 +13,21 @@ class GraphDataset(Dataset):
         self.train_mask = data['train_mask']
         self.test_mask = data['test_mask']
         self.edge_timestamp = data['edge_timestamp']
+
+        # filter labels
+        print(self.train_mask.shape)
+        print(self.test_mask.shape)
+        if filter_labels:
+            mask = np.isin(self.y, filter_labels)    
+            self.train_mask = np.array([index for index in self.train_mask if mask[index]])
+            self.test_mask = np.array([index for index in self.test_mask if mask[index]])
+            num_true = np.count_nonzero(mask)
+            num_false = mask.size - num_true
+
+            print(f"True: {num_true}")
+            print(f"False: {num_false}")    
+            print(self.train_mask.shape)
+            print(self.test_mask.shape)
 
         self.sample_weight = np.array([20 if i == 1 else 1 for i in self.x.tolist()])
 
