@@ -13,7 +13,7 @@ torch_model_dir = os.path.join(root_path, 'libs/nezha-cn-base')
 save_model_dir = os.path.join(root_path, 'save_models')
 
 pretrained_model = 'auc_0.75025_loss_1.05465_epoch_5_pretrain_model.bin'
-trained_model = 'epoch_200_model.bin'
+trained_model = 'epoch_10_model.bin'
 submit_path = os.path.join(root_path, 'data/submit.npy')
 dataset_name = 'DGraphFin'
 

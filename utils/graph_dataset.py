@@ -3,10 +3,10 @@ from torch.utils.data import Dataset
 
 
 class GraphDataset(Dataset):
-    def __init__(self, args, filter_labels=[0, 1]):
+    def __init__(self, args, filter_labels=[]):
         data = np.load(args.data_path)
-        self.x = data['x']
-        self.x = (self.x - self.x.mean(0)) / self.x.std(0)
+        self.data_x = data['x']
+        self.x = (self.data_x - self.data_x.mean(0)) / self.data_x.std(0)
         self.y = data['y']
         self.edge_index = data['edge_index']
         self.edge_type = data['edge_type']
@@ -15,8 +15,8 @@ class GraphDataset(Dataset):
         self.edge_timestamp = data['edge_timestamp']
 
         # filter labels
-        print(self.train_mask.shape)
-        print(self.test_mask.shape)
+        print(f"train_mask.shape: {self.train_mask.shape}")
+        print(f"test_mask.shape: {self.test_mask.shape}")
         if filter_labels:
             mask = np.isin(self.y, filter_labels)    
             self.train_mask = np.array([index for index in self.train_mask if mask[index]])
@@ -25,9 +25,9 @@ class GraphDataset(Dataset):
             num_false = mask.size - num_true
 
             print(f"True: {num_true}")
-            print(f"False: {num_false}")    
-            print(self.train_mask.shape)
-            print(self.test_mask.shape)
+            print(f"False: {num_false}")
+            print(f"train_mask.shape: {self.train_mask.shape}")
+            print(f"test_mask.shape: {self.test_mask.shape}")
 
         self.sample_weight = np.array([20 if i == 1 else 1 for i in self.x.tolist()])
 
@@ -65,3 +65,14 @@ class GraphDataset(Dataset):
             'back_x_attention_mask': back_x_attention_mask,
             'front_x_attention_mask': front_x_attention_mask
         }
+
+    def add_to_train_set(self, index, label):
+        if index not in self.train_mask:
+            self.train_new_mask = np.append(self.train_mask, index)
+            self.y[index] = label
+            mask = np.isin(self.test_mask, self.train_new_mask)
+            self.test_new_mask = self.test_mask[~mask]
+
+    def merge_predictions_to_train_set(self, predictions):
+        for index, label in predictions.items():
+            self.add_to_train_set(index, label)

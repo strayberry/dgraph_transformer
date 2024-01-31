@@ -102,8 +102,9 @@ def train(args):
 
                     pbar.update(1)
                 except Exception as e:
-                    print(e)
                     print(inputs)
+                    print("Error in model forward pass:", e)
+                    print("Input shapes:", {k: v.shape for k, v in inputs.items()})
                     pass
                 continue
 

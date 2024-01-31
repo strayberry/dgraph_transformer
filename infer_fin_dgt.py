@@ -1,5 +1,6 @@
 import os
 import torch
+import random
 import numpy as np
 
 from tqdm import tqdm
@@ -17,53 +18,61 @@ from models.dgt import GraphTransformer
 def interface(args):
     dataset = GraphDataset(args)
     #test_mask = dataset.test_mask.tolist()
-    #test_index = random.sample(test_mask, 10000)
+    #test_index = random.sample(test_mask, 100)
     #test_dataset = torch.utils.data.Subset(dataset=dataset, indices=test_index)
     test_dataset = torch.utils.data.Subset(dataset=dataset, indices=dataset.test_mask)
     test_dataloader = DataLoader(dataset=test_dataset,
-                                 batch_size=128,
+                                 batch_size=2,
                                  shuffle=False,
-                                 num_workers=args.num_works,
+                                 num_workers=0,
                                  collate_fn=collate_fn)
 
     model = GraphTransformer(args)
     model.load_state_dict(torch.load(os.path.join(args.save_model_dir, args.trained_model)), strict=False)
     model.to(args.device)
 
-    #pred_list = []
-    #true_list = []
-    save_list = []
+    filtered_results = {}
     with tqdm(test_dataloader, unit_scale=True, desc=f'interface', colour='green') as pbar_eval:
-        #loss_avg = AverageMeter('loss')
-        for batch in test_dataloader:
-            inputs = {
-                'x': batch['x'].to(args.device),
-                'y': batch['y'].to(args.device),
-                'start_edge_timestamp': batch['start_edge_timestamp'].to(args.device),
-                'end_edge_timestamp': batch['end_edge_timestamp'].to(args.device),
-                'edge_start_type': batch['edge_start_type'].to(args.device),
-                'edge_end_type': batch['edge_end_type'].to(args.device),
-                'back_x': batch['back_x'].to(args.device),
-                'front_x': batch['front_x'].to(args.device)
-            }
-
-            outputs = model(**inputs)
+        for i, batch in enumerate(test_dataloader):
+            inputs = {k: v.to(args.device) for k, v in batch.items()}
+            try:
+                outputs = model(**inputs)
+            except RuntimeError as e:
+                #print(inputs)
+                #print("Error in model forward pass:", e)
+                #print("Input shapes:", {k: v.shape for k, v in inputs.items()})
+                pass
+            
             logits = outputs['logits']
-            #loss = outputs['loss']
-            #loss_avg.update(loss.item())
-            #pred_list.extend(logits.softmax(-1)[:, 1].tolist())
-            #true_list.extend(batch['y'].tolist())
-            save_list.extend(logits.softmax(-1).tolist())
+            
+            max_probs, predicted_indices = logits.softmax(-1).max(dim=1)
+            for j, prob in enumerate(max_probs):
+                if prob > 0.95:
+                    index = dataset.test_mask[i * 2 + j].item()
+                    predicted_label = predicted_indices[j].item()
+                    filtered_results[index] = predicted_label
+
             pbar_eval.update(1)
-    #auc = roc_auc_score(true_list, pred_list)
-    #print({
-    #    'auc': auc,
-    #    'loss': loss_avg.avg
-    #})
-    np.save(args.submit_path, np.array(save_list))
+    
+    return filtered_results
 
 
 if __name__ == '__main__':
     args = parser_args()
     logger.info(args)
-    interface(args)
+
+    dataset = GraphDataset(args)
+    filtered_results = interface(args)
+
+    dataset.merge_predictions_to_train_set(filtered_results)
+
+    np.savez(
+        'updated_dataset.npz', 
+        x=dataset.data_x, 
+        y=dataset.y, 
+        edge_index=dataset.edge_index,
+        edge_type=dataset.edge_type,
+        edge_timestamp=dataset.edge_timestamp,
+        train_mask=dataset.train_new_mask,
+        test_mask=dataset.test_new_mask
+        )
