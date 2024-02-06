@@ -66,13 +66,12 @@ class GraphDataset(Dataset):
             'front_x_attention_mask': front_x_attention_mask
         }
 
-    def add_to_train_set(self, index, label):
-        if index not in self.train_mask:
-            self.train_new_mask = np.append(self.train_mask, index)
-            self.y[index] = label
-            mask = np.isin(self.test_mask, self.train_new_mask)
-            self.test_new_mask = self.test_mask[~mask]
-
     def merge_predictions_to_train_set(self, predictions):
+        self.train_new_mask = np.copy(self.train_mask)
+        self.test_new_mask = np.copy(self.test_mask)
         for index, label in predictions.items():
-            self.add_to_train_set(index, label)
+            if index not in self.train_mask:
+                self.train_new_mask = np.append(self.train_new_mask, index)
+                self.y[index] = label
+                mask = np.isin(self.test_new_mask, self.train_new_mask)
+                self.test_new_mask = self.test_new_mask[~mask]
