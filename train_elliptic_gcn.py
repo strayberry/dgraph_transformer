@@ -91,10 +91,10 @@ def main():
     print("Number of nodes in data:", data.num_nodes)
     print("Number of features in data:", data.num_features)
     
-    # Assuming the dataset is a single graph, we'll split node indices
+    # Assuming the dataset is a single graph, we'll split node indices 4:1:1
     num_nodes = data.x.size(0)  # Assuming x is the node feature matrix
     node_indices = torch.arange(num_nodes)
-    train_size = int(0.8 * num_nodes)
+    train_size = int(0.66 * num_nodes)
     valid_size = (num_nodes - train_size) // 2
     test_size = num_nodes - train_size - valid_size
     train_indices, valid_indices, test_indices = [list(subset.indices) for subset in random_split(node_indices, [train_size, valid_size, test_size])]

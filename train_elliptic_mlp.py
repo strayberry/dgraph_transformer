@@ -86,10 +86,10 @@ def main():
     # Initialize your EllipticTemporalDataset here
     dataset = EllipticTemporalDataset(args)
 
-    # Splitting the dataset into train, validation, and test sets
+    # Splitting the dataset into train, validation, and test sets  4:1:1
     total_data_len = len(dataset)
-    train_size = int(0.7 * total_data_len)
-    valid_size = int(0.2 * total_data_len)
+    train_size = int(0.66 * total_data_len)
+    valid_size = int(0.16 * total_data_len)
     test_size = total_data_len - train_size - valid_size
 
     train_indices = list(range(train_size))

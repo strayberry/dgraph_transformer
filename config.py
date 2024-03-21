@@ -32,10 +32,10 @@ def parser_args():
 
     # ========================== Train Configs =============================
     parser.add_argument('--train_batch_size', type=int, default=32)
-    parser.add_argument('--not_train_batch_size', type=int, default=256)
+    parser.add_argument('--not_train_batch_size', type=int, default=8)
     parser.add_argument('--epoch', type=int, default=10)
-    parser.add_argument('--num_works', type=int, default=4)
-    parser.add_argument('--device', type=str, default='cuda:5')
+    parser.add_argument('--num_works', type=int, default=0)
+    parser.add_argument('--device', type=str, default='cuda:8')
     parser.add_argument('--lr', type=float, default=1e-7)
     parser.add_argument('--weight_decay', type=float, default=1e-7)
     parser.add_argument('--warmup_ratio', type=float, default=0.01)
