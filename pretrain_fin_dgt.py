@@ -92,7 +92,12 @@ class PretrainGraphTransformer(nn.Module):
         start_timestamp_hidden_state = self.timestamp_embedding(start_edge_timestamp)
         end_timestamp_hidden_state = self.timestamp_embedding(end_edge_timestamp)
 
-        # 把x拼接在在x后面的节点的前面，把x拼接在在x前面的节点的后面，加上时间信息，使输出即能包含方向又能包含时间(方向，两点之间关系主要是transformer)
+        """
+        Concatenate X to its preceding and following nodes.
+        Add temporal information so that the output can contain both directionality and temporal information.
+        The relationship between two points is mainly based on Transformer.
+
+        """
         x_nodes_embedding = back_x_hidden_state + edge_start_hidden_state + start_timestamp_hidden_state
         nodes_x_embedding = front_x_hidden_state + edge_end_hidden_state + end_timestamp_hidden_state
         nodes_x_nodes_emb = torch.cat([nodes_x_embedding, x_hidden_state.unsqueeze(1), x_nodes_embedding], dim=1)

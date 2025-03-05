@@ -6,10 +6,10 @@ import torch
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv
 
-'''
-此模型邻居矩阵采用sparse tensor的形式，可以大大减少计算量，
-如果不使用sparse tensor形式传递，将adj_t替换成edge_index
-'''
+"""
+This model uses a sparse tensor format for the neighbor matrix, which can significantly reduce computational load.
+If sparse tensor format is not used, replace `adj_t` with `edge_index`.
+"""
 class GCN(torch.nn.Module):
     def __init__(self
                  , in_channels

@@ -131,10 +131,10 @@ class GraphDataset(Dataset):
 
     def label_propagation_async(self, adjacency_matrix, max_iter=100, threshold=0.95):
         print('label propagation async')
-        num_classes = 2  # 已知的类别数，这里是0和1
+        num_classes = 2  # The known number of classes, which are 0 and 1 here.
         labels = np.copy(self.y)
 
-        # 定义未知和已知掩码
+        # Define unknown and known masks.
         unknown_mask = labels == -100
         print(unknown_mask)
         known_mask = ~unknown_mask
@@ -164,18 +164,18 @@ class GraphDataset(Dataset):
             probabilities[unknown_mask] = neighbor_probs[unknown_mask]
             #print(probabilities[unknown_mask])
 
-        # 计算每个未知标签节点的最大概率及其对应的标签
+        # Calculate the maximum probability for each unknown label node and its corresponding label
         max_probs = probabilities[unknown_mask].max(axis=1)
         predicted_labels = probabilities[unknown_mask].argmax(axis=1)
 
-        # 确定高置信度节点
+        # Identify high-confidence nodes
         high_confidence_mask = max_probs > threshold
         high_confidence_indices = np.where(unknown_mask)[0][high_confidence_mask]
 
-        # 更新高置信度未知节点的标签
+        # Update the labels of high-confidence unknown nodes
         self.y[high_confidence_indices] = predicted_labels[high_confidence_mask]
 
-        # 根据更新后的标签，重新定义train_new_mask和test_new_mask
+        # Based on the updated labels, redefine the `train_new_mask` and `test_new_mask`.
         self.train_new_mask = np.concatenate([self.train_mask, high_confidence_indices])
         self.test_new_mask = np.setdiff1d(self.test_mask, high_confidence_indices)
 

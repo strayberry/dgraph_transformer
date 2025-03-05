@@ -40,10 +40,10 @@ python train_fin_dgt.py
 python train_elliptic_mlp.py --epoch 10 --device cuda:1
 
 # Baseline: GCN
-python train_elliptic_gcn.py --epoch 10 --device cuda:1
+python train_elliptic_baseline.py --model gcn --epoch 10 --device cuda:1
 
 # Baseline: GraphSAGE
-python train_elliptic_gcn.py --epoch 10 --device cuda:1
+python train_elliptic_baseline.py --model sage --epoch 10 --device cuda:1
 
 # DGT
 python train_elliptic_dgt.py --epoch 10 --device cuda:1
