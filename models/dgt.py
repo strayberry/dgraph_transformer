@@ -59,7 +59,7 @@ class GraphTransformer(nn.Module):
             model_config = dgraph_fin_config.copy()
         elif self.args.dataset_name == 'Elliptic':
             model_config = elliptic_config.copy()
-        # Ablation: 不使用预训练权重
+        # Ablation: Without using pre-trained weights
         if self.args.use_pretraining:
             config = BertConfig.from_pretrained(self.args.torch_model_dir)
         else:
@@ -113,7 +113,7 @@ class GraphTransformer(nn.Module):
         front_x_hidden_state = self.x_embedding(front_x)
         edge_start_hidden_state = self.edge_type_embedding(edge_start_type)
         edge_end_hidden_state = self.edge_type_embedding(edge_end_type)
-        # Ablation: 不使用时间特征
+        # Ablation: Without using temporal features
         if self.args.use_time_features:
             start_timestamp_hidden_state = self.timestamp_embedding(start_edge_timestamp)
             end_timestamp_hidden_state = self.timestamp_embedding(end_edge_timestamp)
@@ -124,11 +124,16 @@ class GraphTransformer(nn.Module):
         start_timestamp_hidden_state = self.timestamp_embedding(start_edge_timestamp)
         end_timestamp_hidden_state = self.timestamp_embedding(end_edge_timestamp)
 
-        # 把x拼接在在x后面的节点的前面，把x拼接在在x前面的节点的后面，加上时间信息，使输出即能包含方向又能包含时间(方向，两点之间关系主要是transformer)
+        """
+        Concatenate X to its preceding and following nodes.
+        Add temporal information so that the output can contain both directionality and temporal information.
+        The relationship between two points is mainly based on Transformer.
+        
+        """
         x_nodes_embedding = back_x_hidden_state + edge_start_hidden_state + start_timestamp_hidden_state
         nodes_x_embedding = front_x_hidden_state + edge_end_hidden_state + end_timestamp_hidden_state
         
-        # Ablation: 不按照边的生成顺序拼接
+        # Ablation: Without concatenating in the order of edge generation
         if self.args.use_time_ordering:
             nodes_x_nodes_emb = torch.cat([nodes_x_embedding, x_hidden_state.unsqueeze(1), x_nodes_embedding], dim=1)
         else:
@@ -146,7 +151,7 @@ class GraphTransformer(nn.Module):
             output_hidden_states=output_hidden_states
         ).last_hidden_state.mean(1)
         
-        # Ablation: 不使用BiLSTM
+        # Ablation: Without using BiLSTM
         if self.args.use_bilstm:
             outputs, _ = self.bilstm(hidden_state)
         else:

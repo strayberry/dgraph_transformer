@@ -2,8 +2,9 @@ import random
 import numpy as np
 import scipy.sparse as sp
 from torch.utils.data import Dataset
-from scipy.sparse import csr_matrix, lil_matrix
+from scipy.sparse import csr_matrix
 from sklearn.neighbors import NearestNeighbors
+from sklearn.preprocessing import normalize
 
 
 class GraphDataset(Dataset):
@@ -94,89 +95,119 @@ class GraphDataset(Dataset):
                 self.test_new_mask = self.test_new_mask[~mask]
 
     def build_sparse_adjacency_matrix(self, edge_index, num_nodes):
+        """
+        Builds a sparse adjacency matrix from edge indices.
+
+        Args:
+            edge_index (np.ndarray): A 2xN array where each column represents an edge (source, target).
+            num_nodes (int): The total number of nodes in the graph.
+
+        Returns:
+            csr_matrix: A sparse adjacency matrix in Compressed Sparse Row (CSR) format.
+        """
         print('build sparse adjacency matrix')
-        row = edge_index[0, :]
-        col = edge_index[1, :]
-        data = np.ones_like(row)
-        adjacency_matrix = csr_matrix((data, (row, col)), shape=(num_nodes, num_nodes))
-        print(adjacency_matrix.shape)
+        row = edge_index[0, :]  # Source nodes of edges
+        col = edge_index[1, :]  # Target nodes of edges
+        data = np.ones_like(row)  # Edge weights (default to 1 for unweighted graphs)
+        adjacency_matrix = csr_matrix((data, (row, col)), shape=(num_nodes, num_nodes))  # Create CSR matrix
+        print(adjacency_matrix.shape)  # Print the shape of the adjacency matrix
         return adjacency_matrix
 
     def add_edges_with_knn(self, adjacency_matrix, k=5):
+        """
+        Adds edges to the adjacency matrix based on K-Nearest Neighbors (KNN) of node features.
+
+        Args:
+            adjacency_matrix (csr_matrix): The original sparse adjacency matrix.
+            k (int): The number of nearest neighbors to consider.
+
+        Returns:
+            csr_matrix: An enhanced adjacency matrix with additional edges from KNN.
+        """
         print('add edges with knn')
-        # Use node features to compute K-nearest neighbors
-        nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm='auto').fit(self.data_x)
-        distances, indices = nbrs.kneighbors(self.data_x)
+        # Use approximate nearest neighbors for faster computation
+        from annoy import AnnoyIndex
+        n_nodes = self.data_x.shape[0]
+        tree = AnnoyIndex(self.data_x.shape[1], metric='euclidean')
+        for i in range(n_nodes):
+            tree.add_item(i, self.data_x[i])
+        tree.build(10)  # Build 10 trees for approximate search
 
-        # Get the number of nodes
-        num_nodes = self.data_x.shape[0]
+        # Prepare row and column indices for new edges
+        new_edges = []
+        for i in range(n_nodes):
+            neighbors = tree.get_nns_by_item(i, k + 1)[1:]  # Exclude self
+            new_edges.extend([(i, j) for j in neighbors])
 
-        # Prepare the row and column indices for the new edges
-        # We use array broadcasting to create a grid of indices
-        row_indices = np.repeat(np.arange(num_nodes), k)
-        col_indices = indices[:, 1:].flatten()  # Skip the first column which is the node itself
+        # Create a new sparse matrix for additional edges
+        row_indices = [edge[0] for edge in new_edges]
+        col_indices = [edge[1] for edge in new_edges]
+        new_edges_matrix = csr_matrix((np.ones_like(row_indices), (row_indices, col_indices)), shape=(n_nodes, n_nodes))
 
-        # Create a new sparse matrix with additional edges
-        # Use 1 to indicate the presence of an edge
-        new_edges = csr_matrix((np.ones_like(row_indices), (row_indices, col_indices)), shape=(num_nodes, num_nodes))
-
-        # Add the new edges to the original adjacency matrix
-        # Since we're dealing with unweighted graphs, we can use binary addition
-        enhanced_adj_matrix = adjacency_matrix + new_edges
-
-        # Ensure the matrix is binary since KNN might introduce duplicate edges
-        enhanced_adj_matrix[enhanced_adj_matrix > 1] = 1
+        # Add new edges to the original adjacency matrix
+        enhanced_adj_matrix = adjacency_matrix + new_edges_matrix
+        enhanced_adj_matrix[enhanced_adj_matrix > 1] = 1  # Ensure binary adjacency matrix
 
         return enhanced_adj_matrix
 
-    def label_propagation_async(self, adjacency_matrix, max_iter=100, threshold=0.95):
+    def label_propagation_async(self, adjacency_matrix, max_iter=100, adaptive_threshold=True):
+        """
+        Performs asynchronous label propagation on the graph.
+
+        Args:
+            adjacency_matrix (csr_matrix): The sparse adjacency matrix of the graph.
+            max_iter (int): Maximum number of iterations for label propagation.
+            adaptive_threshold (bool): Whether to use an adaptive confidence threshold.
+
+        Updates:
+            self.y: Updates labels for high-confidence unknown nodes.
+            self.train_new_mask: Updates the training mask to include high-confidence nodes.
+            self.test_new_mask: Updates the testing mask to exclude high-confidence nodes.
+        """
         print('label propagation async')
-        num_classes = 2  # 已知的类别数，这里是0和1
-        labels = np.copy(self.y)
+        labels = np.copy(self.y)  # Copy the original labels
+        unknown_mask = labels == -100  # Mask for nodes with unknown labels
+        known_mask = ~unknown_mask  # Mask for nodes with known labels
+        num_classes = len(np.unique(labels[known_mask]))  # Number of classes (supports multi-class)
 
-        # 定义未知和已知掩码
-        unknown_mask = labels == -100
-        print(unknown_mask)
-        known_mask = ~unknown_mask
-        print(known_mask)
+        # Initialize probability matrix for label propagation
+        probabilities = np.zeros((len(labels), num_classes), dtype=np.float8)
+        for c in range(num_classes):
+            probabilities[known_mask, c] = (labels[known_mask] == c).astype(float)
 
-        # Initialize probabilities matrix
-        probabilities = np.zeros((len(labels), num_classes), dtype=float)
-        probabilities[known_mask, 0] = (labels[known_mask] == 0).astype(float)
-        probabilities[known_mask, 1] = (labels[known_mask] == 1).astype(float)
-        print(probabilities.shape)
-        print(probabilities)
+        # Normalize adjacency matrix for balanced propagation
+        adjacency_matrix = normalize(adjacency_matrix, norm='l1', axis=1).tocsr()
 
-        # Ensure adjacency_matrix is in CSR format for efficiency
-        adjacency_matrix = adjacency_matrix.tocsr()
-
-        print('update neighbor_probs')
         for _ in range(max_iter):
-            # Use matrix multiplication to spread probabilities
-            neighbor_probs = adjacency_matrix.dot(probabilities)
+            # Asynchronous update: Update nodes in random order
+            update_order = np.where(unknown_mask)[0]
+            np.random.shuffle(update_order)  # Randomize update order to avoid bias
+            for node in update_order:
+                neighbors = adjacency_matrix[node].indices
+                if len(neighbors) == 0:
+                    continue
+                # Weighted average of neighbor probabilities
+                neighbor_probs = probabilities[neighbors].mean(axis=0)
+                probabilities[node] = neighbor_probs
 
-            # Normalize probabilities for unknown nodes
-            row_sums = neighbor_probs[unknown_mask].sum(axis=1).reshape(-1, 1)
-            row_sums[row_sums == 0] = 1
-            neighbor_probs[unknown_mask] /= row_sums
+            # Dynamic threshold adjustment
+            if adaptive_threshold:
+                threshold = np.percentile(probabilities[unknown_mask].max(axis=1), 90)  # 90th percentile as threshold
+            else:
+                threshold = 0.95
 
-            # Update probabilities for unknown nodes
-            probabilities[unknown_mask] = neighbor_probs[unknown_mask]
-            #print(probabilities[unknown_mask])
+            # Early stopping if most unknown nodes are confidently labeled
+            max_probs = probabilities[unknown_mask].max(axis=1)
+            if (max_probs > threshold).mean() > 0.9:  # Stop if >90% of unknown nodes are confident
+                break
 
-        # 计算每个未知标签节点的最大概率及其对应的标签
-        max_probs = probabilities[unknown_mask].max(axis=1)
-        predicted_labels = probabilities[unknown_mask].argmax(axis=1)
+        # Update labels for high-confidence unknown nodes
+        high_conf_mask = probabilities.max(axis=1) > threshold
+        self.y[unknown_mask & high_conf_mask] = probabilities[unknown_mask & high_conf_mask].argmax(axis=1)
 
-        # 确定高置信度节点
-        high_confidence_mask = max_probs > threshold
-        high_confidence_indices = np.where(unknown_mask)[0][high_confidence_mask]
-
-        # 更新高置信度未知节点的标签
-        self.y[high_confidence_indices] = predicted_labels[high_confidence_mask]
-
-        # 根据更新后的标签，重新定义train_new_mask和test_new_mask
-        self.train_new_mask = np.concatenate([self.train_mask, high_confidence_indices])
-        self.test_new_mask = np.setdiff1d(self.test_mask, high_confidence_indices)
+        # Update training and testing masks
+        new_train_nodes = np.where(unknown_mask & high_conf_mask)[0]
+        self.train_new_mask = np.concatenate([self.train_mask, new_train_nodes])
+        self.test_new_mask = np.setdiff1d(self.test_mask, new_train_nodes)
 
         print("Updated train_mask and test_mask after label propagation.")

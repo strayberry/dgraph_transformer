@@ -19,7 +19,7 @@ dataset_name = 'DGraphFin'
 
 
 def parser_args():
-    parser = argparse.ArgumentParser(description='信也2022图算法 config')
+    parser = argparse.ArgumentParser(description='DGT config')
 
     parser.add_argument('--root_path', type=str, default=root_path)
     parser.add_argument('--log_path', type=str, default=log_path)
